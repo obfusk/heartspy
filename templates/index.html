@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <!--
+
+    File        : templates/index.html
+    Maintainer  : Felix C. Stegerman <flx@obfusk.net>
+    Date        : 2020-03-29
+
+    Copyright   : Copyright (C) 2020  Felix C. Stegerman
+    Version     : v0.0.1
+    License     : AGPLv3+
+
+  -->
+  <head>
+    {% include "_meta.html" %}
+    {% if game %}
+      <title>heartspy | {{ game }}</title>
+    {% else %}
+      <title>heartspy</title>
+    {% endif %}
+    <style>
+      fieldset, label     { display: inline-block; }
+      fieldset            { background-color: #f6f5f4; }
+      button              { font-size: large; }
+      input[type=number]  { width: 3em; }
+    </style>
+  </head>
+  <body>
+    <form method="post" action="/play">
+      {% if join %}
+        Game:
+        <a href="/?join=yes&game={{ game }}">{{ game }}</a>
+        <input type="hidden" name="game" value="{{ game }}" />
+      {% else %}
+        <label>
+          Game:
+          <input name="game" value="{{ game }}" required
+            pattern="[^ ]+" />
+        </label>
+      {% endif %}
+      <br/>
+      <label>
+        Name:
+        <input name="name" value="{{ name or "" }}" required
+          pattern="[^ ]+" />
+      </label>
+      <br/>
+      <br/>
+      {% if not join %}
+        <button>Play!</button>
+      {% else %}
+        <button>Join!</button>
+      {% endif %}
+      <br/>
+      <br/>
+      <small>NB: Spaces are not allowed in Game or Name.</small>
+    </form>
+    {% include "_footer.html" %}
+  </body>
+</html>

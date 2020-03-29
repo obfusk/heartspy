@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+  <!--
+
+    File        : templates/play.html
+    Maintainer  : Felix C. Stegerman <flx@obfusk.net>
+    Date        : 2020-03-29
+
+    Copyright   : Copyright (C) 2020  Felix C. Stegerman
+    Version     : v0.0.1
+    License     : AGPLv3+
+
+  -->
+  <head>
+    {% include "_meta.html" %}
+    <title>heartspy | {{ game }} | {{ name }}</title>
+    <style>
+      .black          { color: black; }
+      .red            { color: red; }
+      fieldset, label { display: inline-block; }
+      fieldset        { background-color: #f6f5f4; }
+      button          { font-size: large; }
+    </style>
+  </head>
+  <!-- macros -->
+  {% macro formstart(id) %}
+    <form id="{{ id }}" method="post">
+      <input type="hidden" name="game" value="{{ game }}" />
+      <input type="hidden" name="name" value="{{ name }}" />
+  {% endmacro %}
+  {% macro waitingfor(who) %}
+    Waiting for {{ who }}...
+    <br/>
+  {% endmacro %}
+  {% macro trick(t) %}
+    {% set w = trick_winner(t) %}
+    {% for p, c in t.items() %}
+      <span class="{{ colour(c) }}">
+        {{ what(c) }}
+      </span>
+      ({{ p + "*" if p == w else p }}){% if not loop.last %},{% endif %}
+    {% endfor %}
+    <br/>
+  {% endmacro %}
+  {% macro cards(select) %}
+    <fieldset>
+      <legend>
+        {% if select %}
+          Select a card
+        {% else %}
+          Your cards
+        {% endif %}
+      </legend>
+      <table>
+      {% for c in ssort(cur["cards"][name]) %}
+        {% set i = loop.index %}
+        <tr><td>
+          {% if select %}
+              <input type="radio" id="card{{ i }}"
+                name="card" value="{{ c }}"
+                {% if not valid_card(c) %}disabled{% endif %} />
+            </td><td>
+              <label for="card{{ i }}" class="{{ colour(c) }}">
+                {{ what(c) }}
+              </label>
+          {% else %}
+            <span class="{{ colour(c) }}">
+              {{ what(c) }}
+            </span>
+          {% endif %}
+        </td></tr>
+      {% endfor %}
+      </table>
+    </fieldset>
+    <br/>
+    <br/>
+  {% endmacro %}
+  <body>
+    <!-- refresh/restart form -->
+    {{ formstart("form0") }}
+    </form>
+    <!-- main form -->
+    {{ formstart("form") }}
+      <!-- game & player info -->
+      Game:
+      <a href="/?join=yes&game={{ game }}">{{ game }}</a>
+      <br/>
+      Players: {{ players }}
+      <br/>
+      Your name: {{ name }}
+      {% if name == cur["turn"] %}
+        <br/>
+        <strong>Your turn!</strong>
+      {% endif %}
+      <br/>
+      {% if msg %}
+        <br/>
+        {{ msg }}
+        <br/>
+      {% endif %}
+      <br/>
+      {% if cur["trick"] %}
+        Trick:
+        {{ trick(cur["trick"]) }}
+        <br/>
+      {% elif cur["prev_trick"] %}
+        Previous trick:
+        {{ trick(cur["prev_trick"]) }}
+        <br/>
+      {% endif %}
+      {% if cur["turn"] is none %}
+        {% set waiting = true %}
+        <button name="action" value="start">New round!</button>
+        <br/>
+      {% elif cur["turn"] == name %}
+        {{ cards(True) }}
+        <button>Choose!</button>
+        <br/>
+      {% else %}
+        {% set waiting = true %}
+        {{ cards(False) }}
+        {{ waitingfor("players") }}
+      {% endif %}
+      <br/>
+      <hr/>
+      <button name="action" value="leave"   form="form0">Leave!</button>
+      <button name="action" value="restart" form="form0">Restart!</button>
+      <button name="action" value="rejoin"  form="form0">Rejoin!</button>
+      <br/>
+      <br/>
+      <small>NB: Restart discards the current game.</small>
+      <script>
+        document.getElementsByName("action").forEach(b => {
+          if (b.form.id == "form0") {
+            b.onclick = e => {
+              const q = `Are you sure you want to ${b.value} the game?`
+              if (!window.confirm(q)) { e.preventDefault() }
+            }
+          }
+        })
+      </script>
+    </form>
+    {% if waiting %}
+      <noscript>
+        <br/>
+        <hr/>
+        <button form="form0">Refresh!</button>
+        <br/>
+      </noscript>
+      <script>
+        window.onload = () => {
+          const tick = {{ tick }}
+          const f = () => {
+            const r = new XMLHttpRequest()
+            r.addEventListener("load", e => {
+              if (r.status != 200) { return }
+              const t = JSON.parse(r.responseText).tick
+              if (t > tick) {
+                document.getElementById("form0").submit()
+              } else {
+                setTimeout(f, {{ POLL }})
+              }
+            })
+            r.open("GET", "/status/{{ game }}")
+            r.send()
+          }
+          setTimeout(f, {{ POLL }})
+        }
+      </script>
+    {% endif %}
+    {% include "_footer.html" %}
+  </body>
+</html>

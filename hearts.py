@@ -78,16 +78,16 @@ def points_for(card, n):
   if not is_point(card): return 0
   return QUEEN[n] if card == "♠Q" else 1
 
-def distribute_points(cur):
+def distribute_points(cur, tricks):
   n   = len(cur["players"])
   pts = cur["points"].copy()
   now = { p: sum( points_for(c, n) for t in ts for c in t )
-             for p, ts in cur["tricks"].items() }
+             for p, ts in tricks.items() }
   tot = sum(now.values())
   ful = [ p for p, v in now.items() if v == tot ]
   if ful:
     for p in cur["players"]:
-      if p != ful: pts[p] += tot
+      if p not in ful: pts[p] += tot
   else:
     for p, v in now.items():
       pts[p] += v
@@ -142,7 +142,8 @@ def start_round(cur):
   if len(p) not in [3, 4]: raise InvalidAction("#players must be 3 or 4")
   cards = dict(zip(p, random_hands(len(p))))
   turn  = [ x for x in p if FIRST[len(p)] in cards[x] ][0]
-  return dict(cards = cards, turn = turn, trick = odict())
+  return dict(cards = cards, tricks = {}, turn = turn,
+              trick = odict(), prev_trick = None)
 
 def play_card(cur, name, card):
   if name != cur["turn"]: raise InvalidAction("not your turn")
@@ -159,8 +160,8 @@ def play_card(cur, name, card):
     tricks  = { **cur["tricks"], win: wtricks }
     if len(hand) == 1: # last trick
       return dict(
-        points = distribute_points(cur), cards = {},
-        tricks = {}, turn = None, trick = None, prev_trick = None
+        points = distribute_points(cur, tricks), cards = {},
+        tricks = {}, turn = None, trick = None, prev_trick = trick
       )
     else:
       return dict(cards = cards, tricks = tricks, turn = win,

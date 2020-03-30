@@ -5,7 +5,7 @@
 #
 # File        : hearts.py
 # Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-# Date        : 2020-03-29
+# Date        : 2020-03-30
 #
 # Copyright   : Copyright (C) 2020  Felix C. Stegerman
 # Version     : v0.0.1
@@ -36,7 +36,7 @@ CARDS = {
   4 : [ s+v for s in SUITS for v in VALUES ]
 }
 FIRST = { 3: "♣6", 4: "♣2" }
-QUEEN = { 3: 5, 4: 9 }
+QUEEN = 7
 POLL  = 1000
 
 class Oops(RuntimeError):
@@ -76,21 +76,19 @@ def is_point(card):
 
 def points_for(card, n):
   if not is_point(card): return 0
-  return QUEEN[n] if card == "♠Q" else 1
+  return QUEEN if card == "♠Q" else 1
 
-def distribute_points(cur, tricks):
-  n   = len(cur["players"])
-  pts = cur["points"].copy()
-  now = { p: sum( points_for(c, n) for t in ts for c in t )
+def distribute_points(players, tricks):
+  pts = { p: 0 for p in players }
+  now = { p: sum( points_for(c, len(players)) for t in ts for c in t )
              for p, ts in tricks.items() }
   tot = sum(now.values())
   ful = [ p for p, v in now.items() if v == tot ]
   if ful:
-    for p in cur["players"]:
+    for p in players:
       if p not in ful: pts[p] += tot
   else:
-    for p, v in now.items():
-      pts[p] += v
+    for p, n in now.items(): pts[p] += n
   return pts
 
 def valid_card(cur, name, card):
@@ -121,8 +119,8 @@ def next_player(cur, name):
 def init_game(game, name):
   if game not in games:
     games[game] = dict(
-      players = [], points = {}, cards = {}, tricks = {},
-      turn = None, trick = None, prev_trick = None, tick = 0
+      players = [], points = {}, cards = {}, tricks = {}, turn = None,
+      trick = None, prev_trick = None, msg = None, tick = 0
     )
   cur = current_game(game)
   if name not in cur["players"]:
@@ -143,7 +141,7 @@ def start_round(cur):
   cards = dict(zip(p, random_hands(len(p))))
   turn  = [ x for x in p if FIRST[len(p)] in cards[x] ][0]
   return dict(cards = cards, tricks = {}, turn = turn,
-              trick = odict(), prev_trick = None)
+              trick = odict(), prev_trick = None, msg = None)
 
 def play_card(cur, name, card):
   if name != cur["turn"]: raise InvalidAction("not your turn")
@@ -159,9 +157,14 @@ def play_card(cur, name, card):
     wtricks = cur["tricks"].get(win, []) + [tuple(trick.values())]
     tricks  = { **cur["tricks"], win: wtricks }
     if len(hand) == 1: # last trick
+      points = cur["points"].copy()
+      pts = distribute_points(cur["players"], tricks)
+      msg = "Points: " + ", ".join( "{} ({})".format(p, n)
+                                    for p, n in sorted(pts.items()) )
+      for p, n in pts.items(): points[p] += n
       return dict(
-        points = distribute_points(cur, tricks), cards = {},
-        tricks = {}, turn = None, trick = None, prev_trick = trick
+        points = points, cards = {}, tricks = {}, turn = None,
+        trick = None, prev_trick = trick, msg = msg
       )
     else:
       return dict(cards = cards, tricks = tricks, turn = win,
@@ -181,10 +184,10 @@ def data(cur, game, name):
                                               VALUES.index(c[1])))
   return dict(
     cur = cur, game = game, name = name, players = player_data(cur),
-    tick = cur["tick"], colour = colour,
+    tick = cur["tick"], colour = colour, msg = cur["msg"], POLL = POLL,
     valid_card = lambda c: valid_card(cur, name, c),
     trick_winner = trick_winner, what = what, ssort = ssort,
-    POLL = POLL
+    first = FIRST.get(len(cur["players"]))
   )
 
 def game_over(cur, game, name):

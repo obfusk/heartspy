@@ -4,7 +4,7 @@
 
     File        : templates/play.html
     Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-    Date        : 2020-03-29
+    Date        : 2020-03-30
 
     Copyright   : Copyright (C) 2020  Felix C. Stegerman
     Version     : v0.0.1
@@ -20,6 +20,8 @@
       fieldset, label { display: inline-block; }
       fieldset        { background-color: #f6f5f4; }
       button          { font-size: large; }
+      td              { font-size: large; }
+      .disabled, input[type=radio]:disabled { opacity: 0.5; }
     </style>
   </head>
   <!-- macros -->
@@ -54,13 +56,14 @@
       <table>
       {% for c in ssort(cur["cards"][name]) %}
         {% set i = loop.index %}
+        {% set d = "disabled" if not valid_card(c) else "" %}
+        {% set s = "checked" if c == first else "" %}
         <tr><td>
           {% if select %}
               <input type="radio" id="card{{ i }}"
-                name="card" value="{{ c }}"
-                {% if not valid_card(c) %}disabled{% endif %} />
+                name="card" value="{{ c }}" {{ d }} {{ s }} />
             </td><td>
-              <label for="card{{ i }}" class="{{ colour(c) }}">
+              <label for="card{{ i }}" class="{{ colour(c) }} {{ d }}">
                 {{ what(c) }}
               </label>
           {% else %}
@@ -110,7 +113,11 @@
       {% endif %}
       {% if cur["turn"] is none %}
         {% set waiting = true %}
-        <button name="action" value="start">New round!</button>
+        {% if cur["players"]|length in [3, 4] %}
+          <button name="action" value="start">New round!</button>
+        {% else %}
+          NB: You need 3 or 4 players to start.
+        {% endif %}
         <br/>
       {% elif cur["turn"] == name %}
         {{ cards(True) }}

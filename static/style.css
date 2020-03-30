@@ -1,0 +1,21 @@
+.black              { color: black; }
+.red                { color: red; }
+
+fieldset, label     { display: inline-block; }
+fieldset            { background-color: #f6f5f4; }
+button              { font-size: large; }
+td                  { font-size: large; }
+input[type=number]  { width: 3em; }
+
+.disabled, input[type=radio]:disabled { opacity: 0.5; }
+
+@media (min-width: 767px) {
+  html { text-align: center; }
+  body {
+    text-align: initial;
+    width: 700px;
+    margin: auto;
+    padding: 1em;
+    border: 1px solid grey;
+  }
+}

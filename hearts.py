@@ -5,7 +5,7 @@
 #
 # File        : hearts.py
 # Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-# Date        : 2020-03-30
+# Date        : 2020-04-06
 #
 # Copyright   : Copyright (C) 2020  Felix C. Stegerman
 # Version     : v0.0.1
@@ -20,12 +20,13 @@
 # * better error messages
 # * use websocket instead of polling
 
-import itertools, os, random, secrets, time
+import itertools, json, os, random, secrets
 
 from collections import OrderedDict as odict
 
-from flask import Flask, jsonify, redirect, request, \
-                  render_template, url_for
+from flask import Flask, redirect, request, render_template, url_for
+
+from obfusk.webgames.common import *
 
 # === logic ===
 
@@ -37,31 +38,6 @@ CARDS = {
 }
 FIRST = { 3: "♣6", 4: "♣2" }
 QUEEN = 7
-POLL  = 1000
-
-class Oops(RuntimeError):
-  def msg(self): return self.args[0]
-class InProgress(Oops):
-  def __init__(self): super().__init__("in progress")
-class InvalidAction(Oops): pass
-class InvalidParam(Oops):
-  def msg(self): return "invalid parameter: " + self.args[0]
-
-# global state
-games = {}
-
-def current_game(game):
-  return games[game]
-
-def restart_game(game):
-  del games[game]
-
-def update_game(game, new):
-  cur = current_game(game)
-  cur.update(new, tick = max(cur["tick"] + 1, int(time.time())))
-
-def valid_ident(s):
-  return s and s.isprintable() and all( not c.isspace() for c in s )
 
 def random_hands(n):
   cards = CARDS[n].copy(); h = len(cards) // n
@@ -184,10 +160,12 @@ def data(cur, game, name):
                                               VALUES.index(c[1])))
   return dict(
     cur = cur, game = game, name = name, players = player_data(cur),
-    tick = cur["tick"], colour = colour, msg = cur["msg"], POLL = POLL,
+    colour = colour, msg = cur["msg"],
     valid_card = lambda c: valid_card(cur, name, c),
     trick_winner = trick_winner, what = what, ssort = ssort,
-    first = FIRST.get(len(cur["players"]))
+    first = FIRST.get(len(cur["players"])),
+    config = json.dumps(dict(game = game, tick = cur["tick"],
+                             POLL = POLL))
   )
 
 def game_over(cur, game, name):
@@ -197,26 +175,7 @@ def game_over(cur, game, name):
 
 # === http ===
 
-app = Flask(__name__)
-
-if os.environ.get("HEARTSPY_HTTPS") == "force":
-  @app.before_request
-  def https_required():
-    if request.scheme != "https":
-      return redirect(request.url.replace("http:", "https:"), code = 301)
-  @app.after_request
-  def after_request_func(response):
-    response.headers["Strict-Transport-Security"] = 'max-age=63072000'
-    return response
-
-if os.environ.get("HEARTSPY_PASSWORD"):
-  PASSWORD = os.environ.get("HEARTSPY_PASSWORD")
-  @app.before_request
-  def auth_required():
-    auth = request.authorization
-    if not auth or auth.password != PASSWORD:
-      m = "Password required."
-      return m, 401, { "WWW-Authenticate": 'Basic realm="'+m+'"' }
+app = define_common_flask_stuff(Flask(__name__), "heartspy")
 
 @app.route("/")
 def r_index():
@@ -226,10 +185,6 @@ def r_index():
     "index.html", game = game, name = args.get("name"),
     join = "join" in args
   )
-
-@app.route("/status/<game>")
-def r_status(game):
-  return jsonify(dict(tick = current_game(game)["tick"]))
 
 @app.route("/play", methods = ["POST"])
 def r_play():

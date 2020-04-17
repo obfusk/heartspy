@@ -5,7 +5,7 @@
 #
 # File        : hearts.py
 # Maintainer  : Felix C. Stegerman <flx@obfusk.net>
-# Date        : 2020-04-06
+# Date        : 2020-04-17
 #
 # Copyright   : Copyright (C) 2020  Felix C. Stegerman
 # Version     : v0.0.1
@@ -214,6 +214,8 @@ def r_play():
   except InProgress:
     return render_template("late.html", game = game)
   except Oops as e:
-    return render_template("error.html", error = e.msg()), 400
+    d = dict(game = game if valid_ident(game) else None,
+             name = name if valid_ident(name) else None)
+    return render_template("error.html", error = e.msg(), **d), 400
 
 # vim: set tw=70 sw=2 sts=2 et fdm=marker :
